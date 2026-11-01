@@ -4,9 +4,14 @@ set -eu
 
 install_macos() {
   echo "==> Installing packages for macOS"
-
   brew install \
     pi-coding-agent
+}
+
+install_arch() {
+  echo "==> Installing packages for Arch Linux"
+  yay -S --needed --noconfirm --answerclean None --answerdiff None \
+    pi-coding-agent-bin
 }
 
 case "$(uname -s)" in
@@ -15,8 +20,7 @@ case "$(uname -s)" in
     ;;
 
   Linux)
-    echo "Linux is not supported yet"
-    exit 1
+    install_arch
     ;;
 
   *)
