@@ -112,15 +112,19 @@ export function useDebounce(source, delay = 300) {
 For `watch()`, wrap `toValue()` in a getter:
 
 ```javascript
-import { ref, watch, toValue } from 'vue'
+import { ref, watch, toValue, onMounted } from 'vue'
 
 export function useLocalStorage(key, defaultValue) {
   const data = ref(defaultValue)
+  const isMounted = ref(false)
 
-  // CORRECT: Use getter function with watch
+  onMounted(() => { isMounted.value = true })
+
+  // Track the key, but defer storage access until after mount/hydration
   watch(
-    () => toValue(key),  // Getter calls toValue, tracks dependency
-    (newKey) => {
+    [() => toValue(key), isMounted],
+    ([newKey, mounted]) => {
+      if (!mounted) return
       const stored = localStorage.getItem(newKey)
       data.value = stored ? JSON.parse(stored) : defaultValue
     },

@@ -8,49 +8,40 @@ tags: [vue3, composables, composition-api, setup, async, lifecycle]
 
 # Call Composables Only in Setup Context Synchronously
 
-**Impact: HIGH** - Composables must be called synchronously within `<script setup>`, the `setup()` function, or lifecycle hooks. Calling composables asynchronously (after await), in callbacks, or outside component context prevents Vue from associating lifecycle hooks with the component instance, causing silent failures.
+**Impact: HIGH** - Composables that depend on component context should be called synchronously within `<script setup>` or `setup()`, or in supported lifecycle hooks. Calls in asynchronous callbacks or after `await` in ordinary async functions lose that context. Top-level `await` in `<script setup>` is an exception: Vue restores the component context.
 
 This is critical because composables often register `onMounted` and `onUnmounted` hooks internally. If called in the wrong context, these hooks are never registered, leading to uninitialized state or memory leaks.
 
 ## Task Checklist
 
-- [ ] Call all composables at the top level of `<script setup>` or `setup()`
+- [ ] Call component-dependent composables synchronously in a supported context
 - [ ] Never call composables inside async callbacks, setTimeout, or Promise.then
-- [ ] Never call composables conditionally (if/else) - call unconditionally and handle the condition inside
-- [ ] Never call composables inside loops - restructure to call once with array data
+- [ ] Conditional calls and loops are valid when they run synchronously in a supported context
 - [ ] Exception: Composables CAN be called in lifecycle hooks like `onMounted`
 
 **Incorrect:**
 ```vue
 <script setup>
 import { useFetch } from './composables/useFetch'
-import { useAuth } from './composables/useAuth'
 
-// WRONG: Composable called after await
-const config = await loadConfig()
-const { data } = useFetch(config.apiUrl)  // Lifecycle hooks won't register!
-
-// WRONG: Composable called conditionally
-if (someCondition) {
-  const { user } = useAuth()  // Inconsistent hook registration!
+// WRONG: Composable called after await in a nested async function
+async function initialize() {
+  const config = await loadConfig()
+  const { data } = useFetch(config.apiUrl)  // Lifecycle hooks won't register!
 }
+initialize()
 
 // WRONG: Composable called in callback
 setTimeout(() => {
   const { data } = useFetch('/api/delayed')  // No component context!
 }, 1000)
-
-// WRONG: Composable called in loop
-for (const url of urls) {
-  const { data } = useFetch(url)  // Creates multiple instances incorrectly
-}
 </script>
 ```
 
 **Correct:**
 ```vue
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useFetch } from './composables/useFetch'
 import { useAuth } from './composables/useAuth'
 
@@ -65,7 +56,7 @@ onMounted(async () => {
   apiUrl.value = config.apiUrl  // Update the ref, composable reacts
 })
 
-// CORRECT: Handle condition inside, not outside
+// CORRECT: React to condition changes through reactive state
 const showUserData = computed(() => isAuthenticated.value && someCondition)
 
 // CORRECT: For multiple URLs, use a different pattern
@@ -81,7 +72,7 @@ onMounted(async () => {
 
 ## Exception: Calling in Lifecycle Hooks
 
-Composables CAN be called inside lifecycle hooks because Vue maintains the component context:
+Some composables can be called synchronously inside lifecycle hooks because Vue maintains the component context. This does not make setup-only operations or already-passed hooks valid there:
 
 ```vue
 <script setup>
@@ -119,7 +110,7 @@ async function initLater() {
 
 ## Why This Matters
 
-When you call a composable, Vue needs to know which component instance to associate it with. This association happens through an internal "current instance" that's only set during synchronous setup execution.
+When you call a composable, Vue needs to know which component instance to associate it with. This association uses an internal "current instance" available during setup, synchronous lifecycle callbacks, and compiler-restored top-level awaits in `<script setup>`.
 
 ```javascript
 // Inside a composable

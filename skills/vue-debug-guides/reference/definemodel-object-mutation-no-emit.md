@@ -1,29 +1,29 @@
 ---
-title: defineModel Object Properties Must Be Replaced, Not Mutated
+title: defineModel Object Mutations Do Not Emit Updates
 impact: HIGH
-impactDescription: Mutating object properties via defineModel doesn't emit update events, breaking parent sync
+impactDescription: Mutating object properties via defineModel changes shared state without emitting update events
 type: gotcha
 tags: [vue3, v-model, defineModel, objects, reactivity, two-way-binding]
 ---
 
-# defineModel Object Properties Must Be Replaced, Not Mutated
+# defineModel Object Mutations Do Not Emit Updates
 
-**Impact: HIGH** - When using `defineModel()` with objects or arrays, directly mutating nested properties like `model.value.prop = x` does NOT emit the `update:modelValue` event. The parent component never receives the change notification, causing silent sync failures.
+**Impact: HIGH** - When using `defineModel()` with objects or arrays, directly mutating nested properties like `model.value.prop = x` does NOT emit the `update:modelValue` event. The shared reactive object can still update in the parent, but listeners relying on the update event will not run.
 
-This happens because Vue only detects when the `model.value` reference itself changes, not when properties of the object are mutated in place.
+The model ref's setter emits the update event when its value changes. Nested mutations bypass that setter, even though Vue still tracks mutations to a shared reactive object.
 
 ## Task Checklist
 
-- [ ] Never mutate object properties directly: `model.value.prop = x`
-- [ ] Always create a new object reference when updating: `model.value = {...model.value, prop: x}`
+- [ ] Don't expect nested mutations to emit `update:modelValue`
+- [ ] Create a new object reference when an update event is needed: `model.value = {...model.value, prop: x}`
 - [ ] For arrays, use spread or slice: `model.value = [...model.value, newItem]`
-- [ ] Consider using structuredClone for deeply nested objects
+- [ ] For nested updates, copy each object along the changed path
 
 **Incorrect - Mutation without event emission:**
 ```vue
-<script setup>
+<script setup lang="ts">
 // Child component with object v-model
-const model = defineModel<{ name: string; age: number }>()
+const model = defineModel<{ name: string; age: number; items: string[] }>({ required: true })
 
 function updateName(newName: string) {
   // WRONG: This mutates the object in place
@@ -33,15 +33,15 @@ function updateName(newName: string) {
 
 function addToList() {
   // WRONG: Push mutates the array
-  model.value.items.push('new item')  // Parent not notified
+  model.value.items.push('new item')  // No update event; shared data still changes
 }
 </script>
 ```
 
 **Correct - Replace object reference to trigger event:**
 ```vue
-<script setup>
-const model = defineModel<{ name: string; age: number }>()
+<script setup lang="ts">
+const model = defineModel<{ name: string; age: number; items: string[] }>({ required: true })
 
 function updateName(newName: string) {
   // CORRECT: Create new object reference
@@ -62,19 +62,19 @@ function addToList() {
 </script>
 ```
 
-## Deep Nesting Requires Full Path Replacement
+## Deep Updates with Event Emission
 
 ```vue
-<script setup>
+<script setup lang="ts">
 const model = defineModel<{
   user: {
     address: {
       city: string
     }
   }
-}>()
+}>({ required: true })
 
-// WRONG: Deep mutation
+// WRONG: Deep mutation does not emit an update event
 model.value.user.address.city = 'New York'
 
 // CORRECT: Replace entire chain
@@ -88,13 +88,6 @@ model.value = {
     }
   }
 }
-
-// ALTERNATIVE: Use structuredClone for complex updates
-function updateCity(city: string) {
-  const updated = structuredClone(model.value)
-  updated.user.address.city = city
-  model.value = updated  // New reference triggers event
-}
 </script>
 ```
 
@@ -103,8 +96,8 @@ function updateCity(city: string) {
 When multiple updates occur rapidly, earlier changes can be lost:
 
 ```vue
-<script setup>
-const model = defineModel<{ a: string; b: string }>()
+<script setup lang="ts">
+const model = defineModel<{ a: string; b: string }>({ required: true })
 
 // CAUTION: Race condition if called in same tick
 function updateBothWrong() {
@@ -128,7 +121,7 @@ function updateBothCorrect() {
 For complex objects, consider VueUse:
 
 ```vue
-<script setup>
+<script setup lang="ts">
 import { useVModel } from '@vueuse/core'
 
 const props = defineProps<{ modelValue: { name: string } }>()

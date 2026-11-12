@@ -24,11 +24,11 @@ tags: [vue3, typescript, template-refs, lifecycle, null-safety]
 <script setup lang="ts">
 import { ref } from 'vue'
 
-// WRONG: Doesn't account for null
+// WRONG: No initial value; type is HTMLInputElement | undefined
 const inputRef = ref<HTMLInputElement>()
 
 // WRONG: Will crash if accessed before mount
-inputRef.value.focus()  // Error: Cannot read properties of null
+inputRef.value.focus()  // Error: Cannot read properties of undefined
 
 // WRONG: Accessed in setup, element doesn't exist yet
 console.log(inputRef.value.value)  // Error!
@@ -74,7 +74,7 @@ Vue 3.5 introduces `useTemplateRef` with better type inference:
 <script setup lang="ts">
 import { useTemplateRef, onMounted } from 'vue'
 
-// Type is automatically inferred for static refs
+// Explicit element type; value is HTMLInputElement | null
 const inputRef = useTemplateRef<HTMLInputElement>('input')
 
 onMounted(() => {
@@ -190,7 +190,7 @@ onMounted(() => {
     <li
       v-for="(item, index) in items"
       :key="item"
-      :ref="el => { itemRefs[index] = el as HTMLLIElement }"
+      :ref="el => { itemRefs[index] = el as HTMLLIElement | null }"
     >
       {{ item }}
     </li>
@@ -228,6 +228,8 @@ Create a reusable type guard for cleaner code:
 
 ```typescript
 // utils/refs.ts
+import type { Ref } from 'vue'
+
 export function assertRef<T>(
   ref: Ref<T | null>,
   message = 'Ref is not available'

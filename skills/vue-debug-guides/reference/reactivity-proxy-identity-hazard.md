@@ -10,11 +10,11 @@ tags: [vue3, reactivity, proxy, comparison, debugging, identity]
 
 **Impact: HIGH** - Vue's `reactive()` returns a Proxy wrapper that has a different identity than the original object. Using `===` to compare reactive objects can lead to silent bugs where comparisons unexpectedly return `false`.
 
-When you wrap an object with `reactive()`, the returned proxy is NOT equal to the original object. Additionally, accessing nested objects from a reactive object returns new proxy wrappers each time, which can cause identity comparison issues.
+When you wrap an object with `reactive()`, the returned proxy is NOT equal to the original object. Nested objects are also proxied, but Vue caches those proxies: repeated access to the same nested object returns the same proxy.
 
 ## Task Checklist
 
-- [ ] Never compare reactive object instances with `===` directly
+- [ ] Distinguish raw objects from proxies when comparing identity
 - [ ] Use unique identifiers (ID, UUID) for object comparison instead
 - [ ] Use `toRaw()` on both sides when identity comparison is absolutely necessary
 - [ ] Consider using primitive identifiers from database records for comparison
@@ -31,13 +31,13 @@ if (state === original) {
   console.log('Same object') // Never executes
 }
 
-// BUG: Nested object comparison fails
+// Repeated access to the same nested object has stable identity
 const items = reactive([{ id: 1 }, { id: 2 }])
 const item = items[0]
 
 // Later...
 if (items[0] === item) {
-  // May or may not work depending on Vue's proxy caching
+  // Always true here: Vue reuses the same proxy
 }
 
 // BUG: Comparing items from different reactive sources

@@ -15,7 +15,7 @@ Vue's compiler automatically injects context restoration after each top-level aw
 ## Task Checklist
 
 - [ ] Understand that top-level await in `<script setup>` is specially handled
-- [ ] Never register lifecycle hooks in nested async functions
+- [ ] Register lifecycle hooks before the first await in nested async functions
 - [ ] Use `<Suspense>` when using async `<script setup>` components
 - [ ] In regular `setup()`, never use await before lifecycle hook registration
 - [ ] Register hooks synchronously, then do async work inside them
@@ -45,8 +45,10 @@ onMounted(() => {
   console.log('This also runs!')  // Works
 })
 </script>
+```
 
-<!-- IMPORTANT: Parent must use Suspense -->
+```vue
+<!-- Parent.vue: wraps the async component above in Suspense -->
 <template>
   <Suspense>
     <AsyncComponent />
@@ -163,9 +165,10 @@ export default {
 // Vue tracks the "current component instance" during setup
 // This is like a global variable that gets set and cleared
 
-// During synchronous setup:
-function setup() {
-  currentInstance = this  // Vue sets this
+// Before the first await in ordinary async setup:
+async function setup() {
+  // Vue activates its internal currentInstance before invoking setup()
+  // setup() has no component `this`
 
   onMounted(cb)  // Uses currentInstance to register
 

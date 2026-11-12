@@ -1,21 +1,21 @@
 ---
 title: Use markRaw() for Objects That Should Never Be Reactive
 impact: MEDIUM
-impactDescription: Library instances, DOM nodes, and complex objects cause overhead and bugs when wrapped in Vue proxies
+impactDescription: Library instances and complex objects can cause overhead and bugs when wrapped in Vue proxies
 type: efficiency
 tags: [vue3, reactivity, markRaw, performance, external-libraries, dom]
 ---
 
 # Use markRaw() for Objects That Should Never Be Reactive
 
-**Impact: MEDIUM** - Vue's `markRaw()` tells the reactivity system to never wrap an object in a Proxy. Use it for library instances, DOM nodes, class instances with internal state, and complex objects that Vue shouldn't track. This prevents unnecessary proxy overhead and avoids subtle bugs from double-proxying.
+**Impact: MEDIUM** - Vue's `markRaw()` tells the reactivity system to never wrap an object in a Proxy. Use it for library instances, class instances with internal state, and complex objects that Vue shouldn't track. This prevents unnecessary proxy overhead and avoids incompatibilities with proxy-based access.
 
 Without `markRaw()`, placing these objects inside reactive state causes Vue to wrap them in Proxies, which can break library internals, cause identity issues, and waste memory on objects that don't need change tracking.
 
 ## Task Checklist
 
 - [ ] Use `markRaw()` for third-party library instances (maps, charts, editors)
-- [ ] Use `markRaw()` for DOM elements stored in reactive state
+- [ ] Remember that Vue does not proxy DOM elements; `markRaw()` is unnecessary for them
 - [ ] Use `markRaw()` for class instances that manage their own state
 - [ ] Use `markRaw()` for large static data that will never change
 - [ ] Remember: markRaw only affects the root level - nested objects may still be proxied
@@ -37,16 +37,11 @@ const state = reactive({
 // 2. Unnecessary memory overhead
 // 3. Methods may not work correctly through proxy
 // 4. Performance degradation
-
-// WRONG: DOM elements in reactive state
-const elements = reactive({
-  container: document.getElementById('app'),  // Proxied DOM node!
-})
 ```
 
 **Correct:**
 ```javascript
-import { reactive, markRaw, shallowRef } from 'vue'
+import { reactive, markRaw, shallowRef, onMounted } from 'vue'
 import mapboxgl from 'mapbox-gl'
 import * as monaco from 'monaco-editor'
 
@@ -64,7 +59,7 @@ onMounted(() => {
 
 // CORRECT: Large static data
 const geoJsonData = markRaw(await fetch('/huge-geojson.json').then(r => r.json()))
-const state = reactive({
+const geoState = reactive({
   mapData: geoJsonData  // Won't be proxied
 })
 ```
@@ -108,9 +103,9 @@ const state = reactive({
 })
 
 // rawObject itself won't be proxied
-// But if you access nested objects through a reactive parent:
-const container = reactive({ raw: rawObject })
-// container.raw.nested might still be proxied in some cases
+// But inserting a nested object separately into reactive state proxies it:
+const container = reactive({ nested: rawObject.nested })
+// container.nested !== rawObject.nested
 
 // SAFER: Use shallowRef for the container
 import { shallowRef } from 'vue'

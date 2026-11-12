@@ -8,14 +8,14 @@ tags: [vue3, lifecycle, ssr, server-side-rendering, nuxt, onMounted, mounted, hy
 
 # Mounted and Unmounted Hooks Do Not Run During SSR
 
-**Impact: MEDIUM** - During server-side rendering (SSR), lifecycle hooks like `mounted`, `onMounted`, `unmounted`, and `onUnmounted` are never called on the server. This can cause differences between server-rendered and client-rendered content, hydration mismatches, and missing functionality if critical logic is placed only in these hooks.
+**Impact: MEDIUM** - During server-side rendering (SSR), lifecycle hooks like `mounted`, `onMounted`, `unmounted`, and `onUnmounted` are never called on the server. Critical data fetched only in these hooks will be missing from the server-rendered content.
 
-On the server, only `beforeCreate`, `created`, and their Composition API equivalents run. Client-specific operations (DOM access, browser APIs, third-party libraries) must be in mounted hooks, but you must handle the SSR case appropriately.
+During SSR, `beforeCreate`, `created`, and `setup()` run, and the renderer awaits `serverPrefetch` / `onServerPrefetch` hooks. Client-specific operations (DOM access, browser APIs, third-party libraries) must be in mounted hooks, but you must handle the SSR case appropriately.
 
 ## Task Checklist
 
 - [ ] Place browser-specific code (window, document, localStorage) in mounted/onMounted
-- [ ] Ensure critical data fetching happens in hooks that run on server (created)
+- [ ] Use `serverPrefetch` / `onServerPrefetch` or framework data fetching for data the server must await
 - [ ] Handle hydration mismatches for content that differs client vs server
 - [ ] Use `<ClientOnly>` wrapper (Nuxt) or conditional rendering for client-only components
 - [ ] Check for browser environment before using browser APIs
@@ -40,15 +40,17 @@ export default {
   },
   async mounted() {
     // This won't run on server - page renders without user data
-    // Then hydrates with user data - causes flash of content
+    // Client fetch runs after hydration, so content appears later
     this.user = await fetchCurrentUser()
   }
 }
 ```
 
-**Correct:**
+**Correct lifecycle placement (state transfer omitted):**
+`serverPrefetch()` is awaited on the server, but does not serialize or transfer state to the client. This partial example also requires serializing the fetched state and restoring it before the client's initial render to be hydration-safe.
+
 ```javascript
-// CORRECT: Data fetching in created (runs on server), DOM in mounted
+// CORRECT: Await server data in serverPrefetch, access DOM in mounted
 export default {
   data() {
     return {
@@ -56,31 +58,36 @@ export default {
       windowWidth: 0
     }
   },
-  async created() {
-    // This runs on both server and client
+  async serverPrefetch() {
+    // The server renderer awaits this hook (unlike async created)
     this.user = await fetchCurrentUser()
   },
-  mounted() {
+  async mounted() {
     // Browser-specific code safely in mounted
     this.windowWidth = window.innerWidth
     window.addEventListener('resize', this.handleResize)
+    if (!this.user) this.user = await fetchCurrentUser()
   },
   unmounted() {
     window.removeEventListener('resize', this.handleResize)
+  },
+  methods: {
+    handleResize() {
+      this.windowWidth = window.innerWidth
+    }
   }
 }
 ```
 
 ```vue
-<!-- CORRECT: Composition API with SSR awareness -->
+<!-- CORRECT: Nuxt Composition API with SSR awareness -->
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 
-const user = ref(null)
 const windowWidth = ref(0)
 
-// This runs on both server and client (during setup)
-user.value = await useFetch('/api/user')
+// Nuxt useFetch returns a data ref and transfers SSR data to the client
+const { data: user } = await useFetch('/api/user')
 
 // These only run on client
 onMounted(() => {

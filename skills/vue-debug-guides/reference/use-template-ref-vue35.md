@@ -8,7 +8,7 @@ tags: [vue3, vue35, template-refs, useTemplateRef, composition-api]
 
 # Use useTemplateRef for Template Refs in Vue 3.5+
 
-**Impact: MEDIUM** - Before Vue 3.5, template refs required declaring a `ref()` with a name exactly matching the template's ref attribute. This fragile connection breaks silently during refactoring. Vue 3.5's `useTemplateRef()` eliminates this issue with explicit binding and better TypeScript support.
+**Impact: MEDIUM** - Before Vue 3.5, template refs required declaring a `ref()` with a name exactly matching the template's ref attribute. This fragile connection breaks silently during refactoring. Vue 3.5's `useTemplateRef()` makes this binding explicit and improves TypeScript support, but its argument must still match the template ref name.
 
 The legacy pattern causes no errors or warnings when names don't match - the ref simply stays null, leading to confusing debugging sessions.
 
@@ -17,7 +17,7 @@ The legacy pattern causes no errors or warnings when names don't match - the ref
 - [ ] Use `useTemplateRef('ref-name')` in Vue 3.5+ projects
 - [ ] The first argument must exactly match the ref attribute value in the template
 - [ ] IDE support provides auto-completion for available ref names
-- [ ] TypeScript automatically infers the element type
+- [ ] Static ref types are inferred with Vue 3.5+ and `@vue/language-tools` 2.1+; otherwise, provide a generic type
 
 **Incorrect (Legacy Pattern):**
 ```vue
@@ -82,8 +82,7 @@ import { useTemplateRef, onMounted } from 'vue'
 // BENEFITS:
 // 1. Variable name is independent of ref attribute
 // 2. IDE auto-completes available ref names
-// 3. TypeScript infers correct element type
-// 4. Typos in argument cause visible errors
+// 3. Updated Vue language tools infer static ref types
 
 const searchInput = useTemplateRef('search-box')
 const submitButton = useTemplateRef('submit-btn')
@@ -91,7 +90,7 @@ const submitButton = useTemplateRef('submit-btn')
 onMounted(() => {
   // TypeScript knows these are HTMLInputElement and HTMLButtonElement
   searchInput.value?.focus()
-  submitButton.value?.disabled = false
+  if (submitButton.value) submitButton.value.disabled = false
 })
 </script>
 
@@ -101,20 +100,25 @@ onMounted(() => {
 </template>
 ```
 
-## Limitation: v-for Refs
+## v-for Refs
 
-`useTemplateRef()` does **NOT** work with `v-for` refs. You must use the legacy `ref()` pattern for collecting multiple element references in a loop.
+In Vue 3.5+, `useTemplateRef()` supports refs inside `v-for`. Its value is initially `null` and is populated with an array of elements after mount.
 
 ```vue
 <script setup>
-import { ref, onMounted } from 'vue'
+import { useTemplateRef, onMounted } from 'vue'
 
-// CORRECT: Legacy pattern required for v-for refs
-const itemRefs = ref([])
+// CORRECT: Collect v-for refs in Vue 3.5+
+const itemRefs = useTemplateRef('itemRefs')
+
+const items = [
+  { id: 1, text: 'First' },
+  { id: 2, text: 'Second' },
+]
 
 onMounted(() => {
   // itemRefs.value is an array of DOM elements
-  itemRefs.value.forEach(el => {
+  itemRefs.value?.forEach(el => {
     console.log(el.textContent)
   })
 })
@@ -129,7 +133,7 @@ onMounted(() => {
 </template>
 ```
 
-**Why this limitation exists:** When using `v-for`, Vue populates the ref with an array of elements. The `useTemplateRef()` API was designed for single element references and does not support the array population mechanism that `v-for` requires.
+Before Vue 3.5, use `ref([])` with a variable name matching the template ref. In either pattern, the ref array's order is not guaranteed to match the source array.
 
 ## Migration Guide
 

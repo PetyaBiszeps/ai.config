@@ -93,10 +93,10 @@ import { ref } from 'vue'
 
 const items = ref([1, 2, 3, 4, 5])
 
-// BAD: Plain function, not reactive - won't update when items change
+// BAD: Computed once; this value won't update when items change
 const total = items.value.reduce((sum, n) => sum + n, 0)
 
-// BAD: Arrow function - recalculates but Vue doesn't track it
+// A function called during render tracks dependencies, but isn't cached
 const getTotal = () => items.value.reduce((sum, n) => sum + n, 0)
 </script>
 
@@ -124,7 +124,7 @@ const total = computed(() => items.value.reduce((sum, n) => sum + n, 0))
 ## When to Use ref() vs reactive()
 
 ```vue
-<script setup>
+<script setup lang="ts">
 import { ref, reactive } from 'vue'
 
 // Use ref() for:
@@ -143,9 +143,9 @@ const form = reactive({
   errors: []
 })
 
-// Gotcha: Can't reassign reactive objects
-const user = reactive({ name: 'John' })
-// user = { name: 'Jane' }  // This breaks reactivity!
+// Gotcha: Replacing a reactive variable loses the tracked connection
+let user = reactive({ name: 'John' })
+// user = reactive({ name: 'Jane' })  // Existing consumers still track the old proxy
 // user.name = 'Jane'       // This works
 
 // Use ref() if you need to reassign objects
@@ -175,15 +175,15 @@ const user = ref({ name: 'John' })
 </template>
 ```
 
-But in event handlers written inline, you might still need `.value`:
+Top-level refs are also unwrapped in inline event handlers:
 
 ```vue
 <template>
   <!-- This works (Vue handles it) -->
   <button @click="count++">+1</button>
 
-  <!-- For complex logic, .value may be needed -->
-  <button @click="() => { count.value = Math.max(0, count.value - 1) }">
+  <!-- Complex inline logic also uses the unwrapped value -->
+  <button @click="() => { count = Math.max(0, count - 1) }">
     -1 (min 0)
   </button>
 </template>

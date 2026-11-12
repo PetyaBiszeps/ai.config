@@ -10,7 +10,7 @@ tags: [vue3, v-model, defineModel, components, props, two-way-binding]
 
 **Impact: HIGH** - When using `defineModel()` with a default value and the parent doesn't provide a value, the parent and child components will have different values. The parent's ref stays `undefined` while the child uses the default, breaking the two-way binding contract.
 
-This subtle bug can cause confusing behavior where the parent component shows one value while the child shows another, and updates may not propagate correctly.
+The default is not emitted automatically. Subsequent assignments that change the model still emit updates; assigning the same value does not force an update event.
 
 ## Task Checklist
 
@@ -47,9 +47,9 @@ const myValue = ref()  // undefined
   <ChildComponent v-model="myValue" />
 
   <!-- DESYNC: Child shows 1, but parent shows undefined -->
-  <p>Parent value: {{ myValue }}</p>  <!-- Shows: undefined -->
+  <p>Parent value: {{ myValue }}</p>  <!-- Renders empty text for undefined -->
 
-  <!-- Even after child changes value, parent may not update correctly -->
+  <!-- Later child changes still emit updates to the parent -->
 </template>
 ```
 
@@ -76,12 +76,12 @@ const myValue = ref(1)  // Match the expected default
 <script setup>
 import { onMounted } from 'vue'
 
-const model = defineModel({ default: 1 })
+// No prop default: retain undefined so the missing value can be detected
+const model = defineModel({ type: Number })
 
-// Sync default value back to parent on mount
+// Assigning a different value emits the fallback to the parent
 onMounted(() => {
-  if (model.value === 1) {  // Is using default
-    // Force emit to sync parent
+  if (model.value === undefined) {
     model.value = 1
   }
 })
@@ -122,14 +122,7 @@ const safeModel = computed({
  */
 const model = defineModel({
   type: Number,
-  default: 1,
-  // Adding validator helps catch issues in development
-  validator: (value) => {
-    if (value === undefined) {
-      console.warn('ChildComponent: v-model value is undefined. Provide initial value from parent.')
-    }
-    return true
-  }
+  default: 1
 })
 </script>
 ```

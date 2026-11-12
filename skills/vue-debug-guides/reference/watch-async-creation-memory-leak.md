@@ -10,7 +10,7 @@ tags: [vue3, watch, watchers, async, memory-leak, lifecycle, cleanup]
 
 **Impact: HIGH** - Watchers created inside async callbacks (setTimeout, Promise.then, async/await) are not automatically bound to the component instance. They continue running after the component unmounts, causing memory leaks and errors.
 
-Always manually stop watchers that are created asynchronously, or restructure your code to create watchers synchronously with conditional logic.
+Always manually stop watchers that are created asynchronously, or restructure your code to create watchers synchronously with conditional logic. Top-level `await` in `<script setup>` is an exception: Vue restores the component context and binds watchers created afterward.
 
 ## Task Checklist
 
@@ -63,12 +63,13 @@ import { ref, watch, watchEffect, onMounted, onUnmounted } from 'vue'
 const data = ref(null)
 const isDataLoaded = ref(false)
 let asyncWatcherCleanup = null
+let watcherTimer
 
 // CORRECT: Synchronous watcher with conditional logic
 watch(
-  data,
-  (newVal) => {
-    if (isDataLoaded.value && newVal) {
+  [data, isDataLoaded],
+  ([newVal, loaded]) => {
+    if (loaded && newVal) {
       processData(newVal)
     }
   }
@@ -81,7 +82,7 @@ onMounted(async () => {
 
 // CORRECT: Manual cleanup for async-created watcher
 onMounted(() => {
-  setTimeout(() => {
+  watcherTimer = setTimeout(() => {
     const unwatch = watchEffect(() => {
       console.log(data.value)
     })
@@ -92,6 +93,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  // Prevent creating a watcher after the component has unmounted
+  clearTimeout(watcherTimer)
   // Clean up async watcher
   if (asyncWatcherCleanup) {
     asyncWatcherCleanup()
@@ -111,11 +114,11 @@ const userData = ref(null)
 
 // BEST: Create watcher synchronously, handle async condition inside
 watch(
-  userData,
-  (newData) => {
-    // Only process when config is loaded
-    if (config.value && newData) {
-      applyUserSettings(config.value, newData)
+  [userData, config],
+  ([newData, currentConfig]) => {
+    // Process when either input changes and config is loaded
+    if (currentConfig && newData) {
+      applyUserSettings(currentConfig, newData)
     }
   }
 )

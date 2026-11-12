@@ -27,7 +27,7 @@ Universal/isomorphic code must guard platform-specific API access or use librari
 | `window` | `ReferenceError: window is not defined` |
 | `document` | `ReferenceError: document is not defined` |
 | `localStorage` / `sessionStorage` | `ReferenceError` |
-| `navigator` | `ReferenceError` |
+| `navigator` | May exist in modern Node.js; not a reliable browser check |
 | `location` | `ReferenceError` |
 | `history` | `ReferenceError` |
 | `alert` / `confirm` / `prompt` | `ReferenceError` |
@@ -101,22 +101,22 @@ function getStoredValue(key, defaultValue) {
   return defaultValue
 }
 
-// Composable with SSR awareness
+// Composable with SSR awareness (called during setup)
 export function useMediaQuery(query) {
   const matches = ref(false)
+  let mediaQuery
+  const handler = (e) => { matches.value = e.matches }
 
-  // Only run on client
-  if (typeof window !== 'undefined') {
-    const mediaQuery = window.matchMedia(query)
+  // Read browser state after mount to keep initial hydration consistent
+  onMounted(() => {
+    mediaQuery = window.matchMedia(query)
     matches.value = mediaQuery.matches
+    mediaQuery.addEventListener('change', handler)
+  })
 
-    // Setup listener in lifecycle
-    onMounted(() => {
-      const handler = (e) => { matches.value = e.matches }
-      mediaQuery.addEventListener('change', handler)
-      onUnmounted(() => mediaQuery.removeEventListener('change', handler))
-    })
-  }
+  onUnmounted(() => {
+    mediaQuery?.removeEventListener('change', handler)
+  })
 
   return matches
 }
@@ -156,12 +156,12 @@ if (process.server) {
 Use libraries that abstract platform differences:
 
 ```javascript
-// Fetch - works in both Node.js 18+ and browsers
-const response = await fetch('/api/data')
+// Fetch - works in Node.js 18+ and browsers; Node.js needs an absolute URL
+const response = await fetch('https://example.com/api/data')
 
 // For older Node.js, use node-fetch or axios
 import axios from 'axios'
-const { data } = await axios.get('/api/data')
+const { data } = await axios.get('https://example.com/api/data')
 ```
 
 ```javascript
@@ -169,7 +169,7 @@ const { data } = await axios.get('/api/data')
 import Cookies from 'js-cookie' // Client only
 import { parse } from 'cookie' // Works both
 
-// In Nuxt, use useCookie()
+// In Nuxt setup or a Nuxt plugin, use useCookie()
 const token = useCookie('auth-token')
 ```
 
@@ -200,7 +200,7 @@ export function loadConfig() {
 }
 
 // app.js - Universal code uses API instead
-const config = await fetch('/api/config').then(r => r.json())
+const config = await fetch('https://example.com/api/config').then(r => r.json())
 ```
 
 ## Environment Detection Utility

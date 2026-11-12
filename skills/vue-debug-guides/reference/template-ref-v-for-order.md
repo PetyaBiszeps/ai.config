@@ -12,19 +12,7 @@ tags: [vue3, template-refs, v-for, arrays, ordering]
 
 This caveat is not obvious and can cause hard-to-debug issues when you assume the ref array matches your data order.
 
-> **Warning: `useTemplateRef()` does NOT work with v-for refs in Vue 3.5**
->
-> The `useTemplateRef()` API returns `null` when used with refs inside `v-for`. This is a known limitation. You must use the legacy pattern with `ref()` and a matching template ref name:
->
-> ```ts
-> // Does NOT work with v-for - returns null
-> const itemRefs = useTemplateRef('items')
->
-> // Works with v-for - use this pattern instead
-> const items = ref([])  // name must match ref="items" in template
-> ```
->
-> The examples in this rule show `useTemplateRef()` for illustration, but in practice you should use the legacy `ref()` pattern for v-for scenarios until this limitation is addressed.
+> `useTemplateRef()` supports `v-for` refs in Vue 3.5+. Its value is initially `null` and is populated with an array after mount. Before Vue 3.5, use `ref([])` with a variable name matching the template ref.
 
 ## Task Checklist
 
@@ -73,7 +61,7 @@ const itemRefs = useTemplateRef('items')
 
 onMounted(() => {
   // CORRECT: Use data attributes to identify elements
-  itemRefs.value.forEach(el => {
+  itemRefs.value?.forEach(el => {
     const id = el.dataset.id
     const item = items.value.find(i => i.id === Number(id))
     console.log(`${item.text}: `, el)
@@ -147,7 +135,7 @@ const itemRefs = useTemplateRef('items')
 
 // CORRECT: If order matters, sort refs by DOM position
 onMounted(() => {
-  const sortedRefs = [...itemRefs.value].sort((a, b) => {
+  const sortedRefs = [...(itemRefs.value ?? [])].sort((a, b) => {
     // Sort by DOM order using compareDocumentPosition
     return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
   })

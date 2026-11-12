@@ -10,7 +10,7 @@ tags: [vue3, script-setup, defineExpose, async, component-refs]
 
 **Impact: HIGH** - In `<script setup>`, if you call `defineExpose()` after an `await` statement, the exposed properties will NOT be accessible to parent components using template refs. This is a subtle async timing issue that causes silent failures.
 
-The compiler transforms top-level await, and code after await runs in a different execution context where defineExpose cannot properly register with the component instance.
+Top-level `await` preserves component context, but `defineExpose()` must still run before suspension so parent refs receive the intended public interface.
 
 ## Task Checklist
 
@@ -52,13 +52,15 @@ defineExpose({
 ```vue
 <!-- ParentComponent.vue -->
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watchPostEffect } from 'vue'
 import ChildComponent from './ChildComponent.vue'
 
 const childRef = ref(null)
 
-onMounted(() => {
-  // FAILS: All exposed properties are undefined!
+watchPostEffect(() => {
+  // Wait for the async child ref; the parent may mount before the child
+  if (!childRef.value) return
+  // FAILS: The child called defineExpose after await
   console.log(childRef.value.count) // undefined
   childRef.value.increment() // TypeError
 })
@@ -172,19 +174,15 @@ await loadData()
 
 ## Why This Happens
 
-Vue's compiler transforms `<script setup>` with top-level await into an async setup function. The component instance context is only available synchronously before the first await. After await, the execution resumes outside that context, making defineExpose ineffective.
+Vue's compiler transforms `<script setup>` with top-level await into an async setup function and restores the component context after awaiting. The requirement to call `defineExpose()` before awaiting concerns the exposed public interface, not a general loss of component context.
 
 ```javascript
-// What the compiler roughly generates:
-async setup() {
-  const count = ref(0)
+// In <script setup>:
+const count = ref(0)
+defineExpose({ count }) // Declare the public interface before suspension
 
-  // Context available here
-  await fetch(...)  // Suspends execution
-
-  // Context lost after resuming
-  defineExpose({ count }) // Too late!
-}
+await fetch('/api/data')
+// Component context is preserved after this top-level await
 ```
 
 ## Reference

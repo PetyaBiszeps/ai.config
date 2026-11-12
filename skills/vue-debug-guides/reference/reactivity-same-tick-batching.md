@@ -1,20 +1,20 @@
 ---
 title: Understand Reactive Updates are Batched Per Event Loop Tick
 impact: MEDIUM
-impactDescription: Multiple synchronous reactive changes are batched - watchers only see the final value, not intermediate states
+impactDescription: Component updates and default watcher callbacks are batched, so intermediate states may not be observed
 type: gotcha
 tags: [vue3, reactivity, batching, event-loop, watchers, nextTick]
 ---
 
 # Understand Reactive Updates are Batched Per Event Loop Tick
 
-**Impact: MEDIUM** - Vue batches multiple reactive state changes that happen synchronously within the same event loop tick. Watchers and computed properties only see the final state, not intermediate values. This is an optimization, but it can be surprising if you expect watchers to fire for each individual change.
+**Impact: MEDIUM** - Reactive state changes take effect synchronously, but Vue batches component updates and default watcher callbacks. These callbacks usually observe the final state, not intermediate values. Computed values read between mutations reflect the current state, and `flush: 'sync'` watchers run immediately.
 
 Understanding this behavior is essential for debugging scenarios where you expect to observe every state transition.
 
 ## Task Checklist
 
-- [ ] Understand watchers fire once per tick with final value, not for each mutation
+- [ ] Understand default watcher callbacks are batched, not called for every mutation
 - [ ] Use `nextTick()` if you need to ensure DOM updates between state changes
 - [ ] Use `flush: 'sync'` on watchers only if you absolutely need immediate execution
 - [ ] For intermediate value tracking, consider logging or explicit state snapshots
@@ -90,7 +90,7 @@ watch(count, (newValue) => {
 
 async function separatedUpdates() {
   count.value = 1
-  await nextTick()  // Force flush
+  await nextTick()  // Wait for the pending flush
   // Output: "Count: 1"
 
   count.value = 2
@@ -149,15 +149,12 @@ const count = ref(0)
 // Method 1: Sync watcher (not recommended for production)
 watch(count, (val) => console.log('DEBUG:', val), { flush: 'sync' })
 
-// Method 2: Track history manually
+// Method 2: Track history explicitly when updating
 const history = []
-const originalSet = count.value
-Object.defineProperty(count, 'value', {
-  set(val) {
-    history.push(val)
-    originalSet.call(this, val)
-  }
-})
+function setCount(val) {
+  history.push(val)
+  count.value = val
+}
 ```
 
 ## Reference

@@ -138,8 +138,6 @@ const copied = computed(() => [...items.value])
 // Deep copy if you need to mutate nested structures
 const deepCopied = computed(() => {
   return JSON.parse(JSON.stringify(items.value))
-  // Or use structuredClone():
-  // return structuredClone(items.value)
 })
 ```
 
