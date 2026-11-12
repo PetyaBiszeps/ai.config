@@ -79,8 +79,8 @@ class TestThresholdGate(unittest.TestCase):
         original = evaluator.ROOT, evaluator.RUNTIME_DIR, evaluator.DATA_DIR
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            runtime = root / "src/ui-ux-pro-max/scripts"
-            data = root / "src/ui-ux-pro-max/data"
+            runtime = root / "src/interface-design/scripts"
+            data = root / "src/interface-design/data"
             runtime.mkdir(parents=True)
             data.mkdir(parents=True)
             for name in ("core.py", "design_system.py", "reasoning_contract.py"):
