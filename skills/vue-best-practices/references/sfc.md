@@ -36,7 +36,7 @@ components/
 **GOOD:**
 ```vue
 <!-- components/UserCard.vue -->
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 
 const props = defineProps({
@@ -206,7 +206,7 @@ Do not use `watch(userId, ...)`, which passes the current value rather than a re
 import { onMounted, useTemplateRef } from 'vue'
 
 const items = [{ id: 1, name: 'Example' }]
-const itemElements = useTemplateRef<HTMLLIElement>('items')
+const itemElements = useTemplateRef<HTMLLIElement[]>('items')
 onMounted(() => console.log(itemElements.value))
 </script>
 

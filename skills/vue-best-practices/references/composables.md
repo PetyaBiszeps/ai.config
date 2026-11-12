@@ -59,6 +59,11 @@ export function useEventListener(target, event, callback) {
 }
 ```
 
+**Note:** This implementation resolves the target once on mount.
+It is suitable for stable targets such as `window` or `document`.
+For reactive targets that may change, use `watch()` with cleanup
+to remove the listener from the previous target.
+
 ```javascript
 // composables/useMouse.js
 import { ref } from 'vue'
