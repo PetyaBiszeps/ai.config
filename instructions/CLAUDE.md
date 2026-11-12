@@ -26,6 +26,12 @@
 - Keep functions and modules focused.
 - Remove code made obsolete by your changes.
 
+## Security
+
+- Never read, inspect, search, modify, or expose `.env` and `.env.*` files without explicit user permission.
+- `.env.example` and `.env.sample` may be used as configuration references, but must never contain real secrets.
+- Never expose credentials, API keys, tokens, or other sensitive values in code, logs, or responses.
+
 ## Verification
 
 - Run relevant tests, linters, and type checks when available.
