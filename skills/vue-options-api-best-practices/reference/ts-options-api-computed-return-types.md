@@ -180,8 +180,8 @@ computed: {
     return this.someComplexCalculation()
   },
 
-  // Or add annotation to verify
-  mystery(): ExpectedType {  // Error if inference differs
+  // Annotated variant verifies the expected return type
+  mysteryTyped(): ExpectedType {  // Error if the returned value doesn't match
     return this.someComplexCalculation()
   }
 }

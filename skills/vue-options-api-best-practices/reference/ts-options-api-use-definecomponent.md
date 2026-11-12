@@ -14,7 +14,6 @@ tags: [vue3, typescript, options-api, defineComponent, type-inference]
 
 - [ ] Always import and use `defineComponent` from 'vue' for Options API components
 - [ ] Enable `strict: true` (or at minimum `noImplicitThis: true`) in tsconfig.json
-- [ ] Consider migrating to Composition API with `<script setup>` for better type inference
 
 ## The Problem
 
@@ -115,15 +114,6 @@ export default defineComponent({
 ```
 
 This means there's zero runtime cost to using `defineComponent`.
-
-## When to Use defineComponent vs script setup
-
-| Approach | Use Case |
-|----------|----------|
-| `defineComponent` | Options API, Class-based migration, JSX/TSX components |
-| `<script setup>` | New components, better type inference, less boilerplate |
-
-**Official recommendation**: "While Vue does support TypeScript usage with Options API, it is recommended to use Vue with TypeScript via Composition API as it offers simpler, more efficient and more robust type inference."
 
 ## With Vue Single-File Components
 

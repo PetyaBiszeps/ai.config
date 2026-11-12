@@ -161,23 +161,6 @@ methods: {
 }
 ```
 
-## Generic Event Handler Pattern
-
-For reusable handlers:
-
-```typescript
-methods: {
-  // Generic handler that works with any input
-  updateField<T extends HTMLInputElement | HTMLTextAreaElement>(
-    field: keyof typeof this.$data,
-    event: Event
-  ) {
-    const target = event.target as T
-    ;(this as any)[field] = target.value
-  }
-}
-```
-
 ## Why currentTarget vs target?
 
 - **target**: The element that triggered the event (could be a child)
