@@ -15,7 +15,7 @@ tags: [vue3, sfc, scoped-css, styles, build-tools, performance, template, v-html
 - Use `.vue` SFCs instead of separate `.js`/`.ts` and `.css` files for components
 - Colocate template, script, and styles in the same SFC by default
 - Use PascalCase for component names in templates and filenames
-- Prefer component-scoped styles
+- Follow the project's styling approach; use component-scoped CSS where appropriate
 - Prefer class selectors (not element selectors) in scoped CSS for performance
 - Access DOM / component refs with `useTemplateRef()` in Vue 3.5+
 - Use camelCase keys in `:style` bindings for consistency and IDE support
@@ -91,9 +91,9 @@ import UserProfile from './UserProfile.vue'
 
 ## Best practices for `<style>` block in SFCs
 
-### Prefer component-scoped styles
+### Use scoped styles when appropriate
 
-- Use `<style scoped>` for styles that belong to a component.
+- Use `<style scoped>` for truly local CSS when the project uses component styles; follow existing utility-first or design-system conventions otherwise.
 - Keep **global CSS** in a dedicated file (e.g. `src/assets/main.css`) for resets, typography, tokens, etc.
 - Use `:deep()` sparingly (edge cases only).
 
@@ -173,6 +173,47 @@ onMounted(() => {
 
 <template>
   <input ref="input" />
+</template>
+```
+
+## Vue 3.5+: reactive destructured props
+
+In Vue 3.5+, variables destructured from `defineProps()` remain reactive **within the same `<script setup>` block**, thanks to a compiler transform. This is not true in Vue 3.4 and earlier.
+
+```vue
+<script setup lang="ts">
+import { watch } from 'vue'
+
+const { userId, pageSize = 20 } = defineProps<{
+  userId: string
+  pageSize?: number
+}>()
+
+watch(() => userId, (id) => console.log(id))
+// To keep reactivity across an API boundary, pass a getter:
+// useUser(() => userId)
+</script>
+```
+
+Do not use `watch(userId, ...)`, which passes the current value rather than a reactive source.
+
+## Vue 3.5+: template refs inside `v-for`
+
+`useTemplateRef()` also supports a ref used on a `v-for` node. The resulting value is an array after mount; its ordering is **not guaranteed** to match the source array, so do not map items by array index.
+
+```vue
+<script setup lang="ts">
+import { onMounted, useTemplateRef } from 'vue'
+
+const items = [{ id: 1, name: 'Example' }]
+const itemElements = useTemplateRef<HTMLLIElement>('items')
+onMounted(() => console.log(itemElements.value))
+</script>
+
+<template>
+  <ul>
+    <li v-for="item in items" :key="item.id" ref="items">{{ item.name }}</li>
+  </ul>
 </template>
 ```
 

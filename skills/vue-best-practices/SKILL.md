@@ -1,6 +1,6 @@
 ---
 name: vue-best-practices
-description: MUST be used for Vue.js tasks. Strongly recommends Composition API with `<script setup>` and TypeScript as the standard approach. Covers Vue 3, SSR, Volar, vue-tsc. Load for any Vue, .vue files, Vue Router, Pinia, or Vite with Vue work. ALWAYS use Composition API unless the project explicitly requires Options API.
+description: Vue 3 best practices for reactivity, SFCs, component data flow, composables, SSR, and modern Vue APIs. Use for Vue components or Vue-related code; follow the repository stack and preserve existing architectural conventions.
 license: MIT
 metadata:
   author: github.com/vuejs-ai
@@ -14,93 +14,58 @@ Use this skill as an instruction set. Follow the workflow in order unless the us
 ## Core Principles
 - **Keep state predictable:** one source of truth, derive everything else.
 - **Make data flow explicit:** Props down, Events up for most cases.
-- **Favor small, focused components:** easier to test, reuse, and maintain.
+- **Choose useful component boundaries:** split by responsibility, reuse, or testability; avoid needless component extraction.
 - **Avoid unnecessary re-renders:** use computed properties and watchers wisely.
 - **Readability counts:** write clear, self-documenting code.
 
-## 1) Confirm architecture before coding (required)
+## 1) Confirm the project's architecture and Vue version
 
-- Default stack: Vue 3 + Composition API + `<script setup lang="ts">`.
-- If the project explicitly uses Options API, load `vue-options-api-best-practices` skill if available.
-- If the project explicitly uses JSX, load `vue-jsx-best-practices` skill if available.
+- Inspect the repository's Vue version, conventions, framework (including Nuxt), and existing tooling before suggesting an API.
+- For new Vue 3 SFCs, prefer Composition API with `<script setup lang="ts">` when TypeScript is in use. Respect JavaScript-only projects and established conventions.
+- Preserve existing Options API components in legacy code unless migration is requested or clearly justified. Use `vue-options-api-best-practices` when available and relevant.
+- Treat JSX as an explicit project choice; do not introduce it just for consistency.
 
-### 1.1 Must-read core references (required)
+### 1.1 Read references selectively
 
-- Before implementing any Vue task, make sure to read and apply these core references:
-  - `references/reactivity.md`
-  - `references/sfc.md`
-  - `references/component-data-flow.md`
-  - `references/composables.md`
-- Keep these references in active working context for the entire task, not only when a specific issue appears.
+- Start with `references/reactivity.md`, `references/sfc.md`, `references/component-data-flow.md`, or `references/composables.md` **only when the task touches that topic**.
+- Load additional references for specific APIs or problems. Do not load all four core references for every small Vue edit.
+- Prioritize verified project conventions and official documentation over an example that targets another Vue version.
 
-### 1.2 Plan component boundaries before coding (required)
+### 1.2 Plan component boundaries proportionately
 
-Create a brief component map before implementation for any non-trivial feature.
+- For a non-trivial feature, outline components and their state/data ownership when that improves implementation clarity.
+- Keep route components straightforward, but do not force them to be empty wrappers.
+- Extract a component when it has a genuinely independent responsibility, meaningful reuse, complex lifecycle, or a separately testable UI contract.
+- Extract composables for reused or meaningfully complex stateful logic, not merely to reduce line counts.
+- Avoid numeric split thresholds, obligatory feature-folder structures, and mandatory multi-component CRUD templates.
 
-- Define each component's single responsibility in one sentence.
-- Keep entry/root and route-level view components as composition surfaces by default.
-- Move feature UI and feature logic out of entry/root/view components unless the task is intentionally a tiny single-file demo.
-- Define props/emits contracts for each child component in the map.
-- Prefer a feature folder layout (`components/<feature>/...`, `composables/use<Feature>.ts`) when adding more than one component.
+## 2) Apply relevant Vue foundations
 
-## 2) Apply essential Vue foundations (required)
+### Reactivity — [reactivity](references/reactivity.md)
 
-These are essential, must-know foundations. Apply all of them in every Vue task using the core references already loaded in section `1.1`.
+- Prefer `ref()` for ordinary local state, including primitives; use `reactive()` when object-style mutation makes sense.
+- Reserve `shallowRef()` / `shallowReactive()` for explicit shallow-reactivity needs, large immutable structures, or external/opaque objects.
+- Derive values with `computed()` and use `watch()` / `watchEffect()` for reactive side effects. Handle stale async operations when relevant.
 
-### Reactivity
+### SFCs and modern Vue APIs — [sfc](references/sfc.md)
 
-- Must-read reference from `1.1`: [reactivity](references/reactivity.md)
-- Keep source state minimal (`ref`/`reactive`), derive everything possible with `computed`.
-- Use watchers for side effects if needed.
-- Avoid recomputing expensive logic in templates.
+- Match the project's SFC structure and styling conventions; keep templates readable and safe.
+- In Vue 3.5+, destructured `defineProps()` bindings are reactive inside the same `<script setup>` block. Pass `() => propName` to watchers or composables when a reactive source is needed.
+- In Vue 3.5+, prefer `useTemplateRef()` for DOM/component template refs, including refs inside `v-for` where an array is produced.
+- In Vue 3.5+, use `useId()` when stable SSR-safe IDs are needed for form labels or accessibility attributes.
+- `defineModel()` is available in Vue 3.4+ for two-way component contracts; beware of child defaults desynchronizing from an undefined parent model.
 
-### SFC structure and template safety
+### Component data flow — [component-data-flow](references/component-data-flow.md)
 
-- Must-read reference from `1.1`: [sfc](references/sfc.md)
-- Keep SFC sections in this order: `<script>` → `<template>` → `<style>`.
-- Keep SFC responsibilities focused; split large components.
-- Keep templates declarative; move branching/derivation to script.
-- Apply Vue template safety rules (`v-html`, list rendering, conditional rendering choices).
+- Prefer explicit props and emits for parent-child communication; use `v-model` only when two-way binding is the desired contract.
+- Use provide/inject for appropriate cross-tree context, with typed keys when useful.
 
-### Keep components focused
+### Composables — [composables](references/composables.md)
 
-Split a component when it has **more than one clear responsibility** (e.g. data orchestration + UI, or multiple independent UI sections).
-
-- Prefer **smaller components + composables** over one “mega component”
-- Move **UI sections** into child components (props in, events out).
-- Move **state/side effects** into composables (`useXxx()`).
-
-Apply objective split triggers. Split the component if **any** condition is true:
-
-- It owns both orchestration/state and substantial presentational markup for multiple sections.
-- It has 3+ distinct UI sections (for example: form, filters, list, footer/status).
-- A template block is repeated or could become reusable (item rows, cards, list entries).
-
-Entry/root and route view rule:
-
-- Keep entry/root and route view components thin: app shell/layout, provider wiring, and feature composition.
-- Do not place full feature implementations in entry/root/view components when those features contain independent parts.
-- For CRUD/list features (todo, table, catalog, inbox), split at least into:
-  - feature container component
-  - input/form component
-  - list (and/or item) component
-  - footer/actions or filter/status component
-- Allow a single-file implementation only for very small throwaway demos; if chosen, explicitly justify why splitting is unnecessary.
-
-### Component data flow
-
-- Must-read reference from `1.1`: [component-data-flow](references/component-data-flow.md)
-- Use props down, events up as the primary model.
-- Use `v-model` only for true two-way component contracts.
-- Use provide/inject only for deep-tree dependencies or shared context.
-- Keep contracts explicit and typed with `defineProps`, `defineEmits`, and `InjectionKey` as needed.
-
-### Composables
-
-- Must-read reference from `1.1`: [composables](references/composables.md)
-- Extract logic into composables when it is reused, stateful, or side-effect heavy.
-- Keep composable APIs small, typed, and predictable.
-- Separate feature logic from presentational components.
+- Prefer small, predictable APIs and extract reused or complex stateful behavior when helpful.
+- For genuinely reusable inputs, consider `MaybeRefOrGetter<T>` and normalize with `toValue()` **inside a tracked reactive getter/effect** when the input must remain reactive.
+- Do not make every composable library-grade by default. For writable inputs, require a writable `Ref<T>` when changes must propagate to the caller; a plain value cannot be mutated by reference.
+- Account for SSR: browser globals and DOM effects must run only in a client-safe context, with cleanup where needed.
 
 ## 3) Consider optional features only when requirements call for them
 
@@ -140,15 +105,10 @@ Performance work is a post-functionality pass. Do not optimize before core behav
 
 ## 5) Final self-check before finishing
 
-- Core behavior works and matches requirements.
-- All must-read references were read and applied.
-- Reactivity model is minimal and predictable.
-- SFC structure and template rules are followed.
-- Components are focused and well-factored, splitting when needed.
-- Entry/root and route view components remain composition surfaces unless there is an explicit small-demo exception.
-- Component split decisions are explicit and defensible (responsibility boundaries are clear).
-- Data flow contracts are explicit and typed.
-- Composables are used where reuse/complexity justifies them.
-- Moved state/side effects into composables if applicable
-- Optional features are used only when requirements demand them.
-- Performance changes were applied only after functionality was complete.
+- Behavior matches the request and existing project conventions.
+- Reactive state and derived values are used appropriately; shallow state is intentional.
+- Component boundaries and composable extraction solve real problems rather than satisfy arbitrary size rules.
+- Vue version-specific APIs match the installed version.
+- Watchers clean up stale side effects, and browser-only code is SSR-safe when needed.
+- Relevant references were consulted; irrelevant documentation was not loaded by default.
+- Test, type-check, and visually verify the affected behavior when tooling is available.

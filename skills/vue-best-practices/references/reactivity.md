@@ -15,7 +15,7 @@ This reference covers the core reactivity decisions for local state, external da
 ## Task List
 
 - Declare reactive state correctly
-  - Always use `shallowRef()` instead of `ref()` for primitive values
+  - Prefer `ref()` for ordinary primitive state; reserve shallow APIs for explicit shallow semantics
   - Choose the correct reactive declaration method for objects/arrays/map/set
 - Follow best practices for `reactive`
   - Avoid destructuring from `reactive()` directly
@@ -31,19 +31,19 @@ This reference covers the core reactivity decisions for local state, external da
 
 ## Declare reactive state correctly
 
-### Always use `shallowRef()` instead of `ref()` for primitive values (string, number, boolean, null, etc.) for better performance.
+### Prefer `ref()` for ordinary primitive state
 
-**Incorrect:**
+Vue's recommended default in Composition API is `ref()`. For a string, number, or boolean, `ref()` does not incur deep object proxying, so there is no practical reason to mandate `shallowRef()` as a primitive-value optimization.
+
 ```ts
 import { ref } from 'vue'
+
 const count = ref(0)
+const query = ref('')
+const isOpen = ref(false)
 ```
 
-**Correct:**
-```ts
-import { shallowRef } from 'vue'
-const count = shallowRef(0)
-```
+`shallowRef()` is useful for large immutable/replace-on-write structures, opaque foreign instances, or integration with external state systems. It tracks replacement of `.value` but **not** nested mutations. Choose it based on semantics and measured needs, not as a blanket default.
 
 ### Choose the correct reactive declaration method for objects/arrays/map/set
 
@@ -323,7 +323,7 @@ watch(
 
 ### Clean up async effects for watchers
 
-When reacting to rapid changes (search boxes, filters), cancel the previous request.
+When reacting to rapid changes (search boxes, filters), cancel the previous request. In Vue 3.5+, `onWatcherCleanup()` is also available, but it must be registered synchronously before any `await`. The watcher callback's `onCleanup` parameter works across older Vue 3 versions and is not subject to that synchronous-registration restriction.
 
 **GOOD:**
 

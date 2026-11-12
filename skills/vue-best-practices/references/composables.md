@@ -12,11 +12,11 @@ tags: [vue3, composables, composition-api, code-organization, api-design, readon
 
 ## Task List
 
-- Compose complex behavior from small, focused composables
+- Compose behavior from small, focused composables when doing so reduces real complexity
 - Use options objects for composables with multiple optional parameters
 - Return readonly state when updates must flow through explicit actions
 - Keep pure utility functions as plain utilities, not composables
-- Organize composable and component code by feature concern, and extract composables when components grow
+- Organize code by feature concern where helpful; extract composables for reuse or meaningful complexity, not just size
 
 ## Compose Composables from Smaller Primitives
 
@@ -50,8 +50,12 @@ onUnmounted(() => window.removeEventListener('mousemove', onMove))
 import { onMounted, onUnmounted, toValue } from 'vue'
 
 export function useEventListener(target, event, callback) {
-  onMounted(() => toValue(target).addEventListener(event, callback))
-  onUnmounted(() => toValue(target).removeEventListener(event, callback))
+  let attachedTo
+  onMounted(() => {
+    attachedTo = toValue(target)
+    attachedTo?.addEventListener(event, callback)
+  })
+  onUnmounted(() => attachedTo?.removeEventListener(event, callback))
 }
 ```
 
@@ -64,7 +68,8 @@ export function useMouse() {
   const x = ref(0)
   const y = ref(0)
 
-  useEventListener(window, 'mousemove', (e) => {
+  // Resolve window only after mount so SSR can safely evaluate setup.
+  useEventListener(() => window, 'mousemove', (e) => {
     x.value = e.pageX
     y.value = e.pageY
   })
@@ -91,6 +96,40 @@ export function useMouseInElement(elementRef) {
   return { x, y, isOutside }
 }
 ```
+
+## Accept maybe-reactive inputs when adaptability is useful
+
+For a public or genuinely reusable read-only input, Vue 3.3+ provides `MaybeRefOrGetter<T>`: a raw value, a `Ref`, a computed ref, or a zero-argument getter. For a private project-specific composable, a simple `string` or `Ref<string>` may be clearer.
+
+```ts
+import { computed, toValue } from 'vue'
+import type { MaybeRefOrGetter } from 'vue'
+
+export function useNormalizedQuery(query: MaybeRefOrGetter<string>) {
+  const normalizedQuery = computed(() => toValue(query).trim().toLowerCase())
+  return { normalizedQuery }
+}
+```
+
+This supports `useNormalizedQuery('Hello')`, `useNormalizedQuery(ref('Hello'))`, and `useNormalizedQuery(() => props.query)`. **Resolve `toValue(query)` inside `computed`, `watch` source, or `watchEffect`** when subsequent changes must be tracked. Normalizing once in setup loses reactive updates from getters/refs.
+
+### Distinguish readable from writable inputs
+
+If the composable needs to update the caller's reactive value, require a writable `Ref<T>` rather than `MaybeRef<T>` with a raw-value fallback:
+
+```ts
+import type { Ref } from 'vue'
+
+export function useIncrement(count: Ref<number>) {
+  return { increment: () => { count.value += 1 } }
+}
+```
+
+A plain `number` cannot be modified in the caller by turning it into a new local `ref`. For callbacks or predicates whose **value is a function**, avoid `MaybeRefOrGetter<Function>` with `toValue()` because it would call that function as a getter. Use an explicit function signature (or a well-defined `Ref<Function>`) instead.
+
+### SSR and lifecycle
+
+For DOM side effects, use `onMounted()` (or a browser guard) and clean up listeners/timers in `onUnmounted()`. Avoid reading `window` or `document` while executing server-side setup. Consider async cancellation and avoid cross-request module-level reactive singletons in SSR.
 
 ## Use Options Object Pattern for Composable Parameters
 

@@ -8,21 +8,22 @@ tags: [vue3, state-management, pinia, composables, ssr, vueuse]
 
 # State Management Strategy
 
-**Impact: HIGH** - Use the lightest state solution that fits your app architecture. SPA-only apps can use lightweight global composables, while SSR/Nuxt apps should default to Pinia for request-safe isolation and predictable tooling.
+**Impact: HIGH** - Use the lightest state solution that fits your architecture. SSR needs request-isolated state: Nuxt `useState()` can be appropriate for simple serializable shared state, while Pinia supports more structured shared state and tooling.
 
 ## Task List
 
 - Keep state local first, then promote to shared/global only when needed
 - Use singleton composables only in non-SSR applications
 - Expose global state as readonly and mutate through explicit actions
-- Prefer Pinia for SSR/Nuxt, large apps, and advanced debugging/plugin needs
+- In Nuxt, consider `useState()` for small SSR-safe state; use Pinia when stores/actions/plugins/devtools justify it
 - Avoid exporting mutable module-level reactive state directly
 
 ## Choose the Lightest Store Approach
 
 - **Feature composable:** Default for reusable logic with local/feature-level state.
 - **Singleton composable or VueUse `createGlobalState`:** Small non-SSR apps needing shared app state.
-- **Pinia:** SSR/Nuxt apps, medium-to-large apps, and cases requiring DevTools, plugins, or action tracing.
+- **Nuxt `useState()`:** Simple serializable shared state scoped per SSR request; avoid secrets in client-hydrated state.
+- **Pinia:** Complex shared domains, stores/actions/plugins/DevTools, or teams already using Pinia. Use framework integration (`@pinia/nuxt`) in Nuxt.
 
 ## Avoid Exporting Mutable Module State
 

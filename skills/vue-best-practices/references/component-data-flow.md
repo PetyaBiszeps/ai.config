@@ -20,7 +20,7 @@ The main principle of data flow in Vue.js is **Props Down / Events Up**. This is
 - Emit events instead of mutating parent state directly
 - Use `defineModel` for v-model in modern Vue (3.4+)
 - Handle v-model modifiers deliberately in child components
-- Use symbols for provide/inject keys to avoid props drilling (over ~3 layers)
+- Use typed symbol injection keys for shared context when appropriate; avoid arbitrary depth thresholds
 - Keep mutations in the provider or expose explicit actions
 - In TypeScript projects, prefer type-based `defineProps`, `defineEmits`, and `InjectionKey`
 
@@ -174,7 +174,7 @@ const emit = defineEmits(['updateUser'])
 
 ## `v-model`: Predictable Two-Way Bindings
 
-Use `defineModel` by default for component bindings and emit updates on input. Only use the `modelValue` + `update:modelValue` pattern if you are on Vue < 3.4.
+Use `defineModel()` for typical two-way component contracts in Vue 3.4+ when it fits the project's conventions. The explicit `modelValue` + `update:modelValue` contract remains valid and may be clearer for unusual behavior or legacy components.
 
 **BAD:**
 ```vue
@@ -212,6 +212,8 @@ const emit = defineEmits(['update:modelValue'])
   />
 </template>
 ```
+
+Beware: `defineModel({ default: ... })` can cause parent/child desynchronization if the parent binds an undefined ref and the child starts with a default. Prefer initializing the parent model or designing an explicit optional-value contract.
 
 If you need the updated value immediately after a change, use the input event value or `nextTick` in the parent.
 
