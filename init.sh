@@ -10,4 +10,7 @@ sh "$AI_CONFIG_DIR/scripts/download.sh"
 echo "==> Applying AI config"
 sh "$AI_CONFIG_DIR/scripts/apply.sh"
 
+echo "==> Installing integrations"
+sh "$AI_CONFIG_DIR/scripts/integrations.sh"
+
 echo "==> Done"

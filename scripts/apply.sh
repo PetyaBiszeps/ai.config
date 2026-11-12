@@ -4,20 +4,18 @@ set -eu
 
 AI_CONFIG_DIR="$(cd "$(dirname "$0")/.." && pwd -P)"
 
-SOURCE="$AI_CONFIG_DIR/agents/skills"
-TARGET="$HOME/.agents/skills"
+. "$AI_CONFIG_DIR/scripts/utils/link.sh"
 
-echo "==> Linking agent skills"
+echo "==> Linking AI instructions"
 
-mkdir -p "$HOME/.agents"
+link_path "$AI_CONFIG_DIR/instructions/AGENTS.md" "$HOME/.codex/AGENTS.md"
+link_path "$AI_CONFIG_DIR/instructions/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
 
-if [ -L "$TARGET" ]; then
-  rm "$TARGET"
-elif [ -e "$TARGET" ]; then
-  echo "Error: $TARGET exists and is not a symlink"
-  exit 1
-fi
+echo "==> Linking AI skills"
 
-ln -s "$SOURCE" "$TARGET"
+mkdir -p "$AI_CONFIG_DIR/skills"
 
-echo "==> Agent skills linked"
+link_path "$AI_CONFIG_DIR/skills" "$HOME/.agents/skills"
+link_path "$AI_CONFIG_DIR/skills" "$HOME/.claude/skills"
+
+echo "==> AI config applied"
