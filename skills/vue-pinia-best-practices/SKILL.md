@@ -8,6 +8,12 @@ author: github.com/vuejs-ai
 
 Pinia best practices, common gotchas, and state management patterns.
 
+### Choosing State Management
+- Keep component-local state in `ref()` / `reactive()` and reusable behavior in composables.
+- In Nuxt, consider `useState()` for small, serializable SSR-safe shared state.
+- Use Pinia when shared domain logic, actions, plugins, or DevTools justify a store.
+- Put shareable filters/pagination in route queries; never hydrate server-only secrets.
+
 ### Store Setup
 - Getting "getActivePinia was called" error at startup → See [pinia-no-active-pinia-error](reference/pinia-no-active-pinia-error.md)
 - Setup stores missing state in DevTools or SSR → See [pinia-setup-store-return-all-state](reference/pinia-setup-store-return-all-state.md)

@@ -8,23 +8,19 @@ tags: [vue3, pinia, state-management, devtools, architecture, scalability]
 
 # Use Pinia for Large-Scale Vue Applications
 
-**Impact: MEDIUM** - While Vue's Composition API allows creating simple reactive stores with `reactive()` and `ref()`, these hand-rolled solutions lack the tooling, conventions, and debugging capabilities needed for large-scale production applications. Pinia is the official Vue state management solution and should be used for any non-trivial application.
+**Impact: MEDIUM** - Choose state management based on actual application needs. Vue's reactivity APIs and composables work well for simple state, while Pinia adds structured stores, actions, DevTools integration, and a plugin ecosystem when those capabilities are needed.
 
 ## Task Checklist
 
-- [ ] Use Pinia for applications with shared state across multiple components
+- [ ] Choose Pinia when shared state and domain actions warrant dedicated stores
 - [ ] Use Pinia when team collaboration requires consistent patterns
 - [ ] Use Pinia when you need Vue DevTools state debugging
-- [ ] Hand-rolled `reactive()` is acceptable only for simple, single-developer apps
+- [ ] Consider local state, composables, or Nuxt `useState()` before adding a store
 - [ ] Migrate from Vuex to Pinia (Vuex is in maintenance mode)
 
 ## When Hand-Rolled State is Acceptable
 
-Simple reactive state is fine for:
-- Prototypes and proof-of-concepts
-- Very small applications with minimal shared state
-- Single-developer projects with limited scope
-- Learning purposes
+Simple reactive state and composables are fine when they meet the requirements, regardless of team size. In Nuxt, `useState()` offers request-isolated, serializable shared state. Do not use module-level reactive singletons for request-specific SSR state.
 
 ```javascript
 // Simple hand-rolled store - OK for small apps
@@ -137,9 +133,9 @@ Pinia supports HMR out of the box - state persists during development:
 Pinia handles SSR state correctly:
 
 ```javascript
-// Automatic per-request state isolation
-// State serialization for hydration
-// No cross-request pollution
+// SSR requires a Pinia instance per application/request
+// Set up state serialization and hydration through the framework integration
+// Never put server-only secrets in hydrated state
 ```
 
 ### 6. Plugin Ecosystem

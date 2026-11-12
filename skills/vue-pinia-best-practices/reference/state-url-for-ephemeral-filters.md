@@ -120,7 +120,7 @@ const category = useRouteQuery('category', 'all')
 const sort = useRouteQuery('sort', 'newest')
 const search = useRouteQuery('q', '')
 const page = useRouteQuery('page', 1, { transform: Number })
-const showOutOfStock = useRouteQuery('inStock', false, { transform: Boolean })
+const showOutOfStock = useRouteQuery('inStock', false, { transform: v => v === 'true' })
 
 // Arrays work too
 const selectedTags = useRouteQuery('tags', [], {
@@ -135,61 +135,9 @@ const selectedTags = useRouteQuery('tags', [], {
 </template>
 ```
 
-## Hybrid Approach: URL + Store
+## When URL and Store State Coexist
 
-For complex state, sync URL with store:
-
-```javascript
-// stores/productFilters.js
-import { defineStore } from 'pinia'
-import { useRoute, useRouter } from 'vue-router'
-import { watch } from 'vue'
-
-export const useProductFiltersStore = defineStore('productFilters', () => {
-  const route = useRoute()
-  const router = useRouter()
-
-  // Local reactive state
-  const category = ref('all')
-  const sortBy = ref('newest')
-  const searchQuery = ref('')
-  const page = ref(1)
-
-  // Initialize from URL on store creation
-  function initFromUrl() {
-    category.value = route.query.category || 'all'
-    sortBy.value = route.query.sort || 'newest'
-    searchQuery.value = route.query.q || ''
-    page.value = parseInt(route.query.page) || 1
-  }
-
-  // Sync state changes TO URL
-  function syncToUrl() {
-    router.replace({
-      query: {
-        category: category.value !== 'all' ? category.value : undefined,
-        sort: sortBy.value !== 'newest' ? sortBy.value : undefined,
-        q: searchQuery.value || undefined,
-        page: page.value > 1 ? page.value : undefined
-      }
-    })
-  }
-
-  // Watch for URL changes (back/forward navigation)
-  watch(() => route.query, initFromUrl, { immediate: true })
-
-  // Watch for state changes and sync to URL
-  watch([category, sortBy, searchQuery, page], syncToUrl)
-
-  return {
-    category,
-    sortBy,
-    searchQuery,
-    page,
-    initFromUrl
-  }
-})
-```
+Prefer the URL as the single source of truth for shareable filters, search, sorting, and pagination. Pinia may own separate business state, but avoid mirroring every query parameter with two-way watchers. Synchronize only when a concrete requirement justifies it.
 
 ## What Goes in URL vs Store
 

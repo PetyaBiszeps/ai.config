@@ -12,6 +12,8 @@ tags: [vue3, pinia, state-management, setup-stores, ssr, devtools]
 
 This is a critical gotcha that can cause silent failures in production.
 
+**Security:** The state returned by a Setup Store can be sent to the client during SSR hydration. Keep server-only session tokens and secrets out of Pinia state. A client-visible `hasLoggedIn` flag is only UI state, never an authorization check.
+
 ## Task Checklist
 
 - [ ] Return ALL reactive state properties from setup stores
@@ -33,10 +35,10 @@ export const useUserStore = defineStore('user', () => {
   const email = ref('')
 
   // "Private" state - NOT returned
-  const authToken = ref('')  // Won't be serialized for SSR!
+  const lastLoginAt = ref(null)  // Won't be serialized for SSR!
   const lastFetchTime = ref(null)  // Won't appear in DevTools!
 
-  const isLoggedIn = computed(() => !!authToken.value)
+  const hasLoggedIn = computed(() => lastLoginAt.value !== null)
 
   async function login(credentials) {
     const response = await fetch('/api/login', {
@@ -45,17 +47,17 @@ export const useUserStore = defineStore('user', () => {
     })
     const data = await response.json()
 
-    authToken.value = data.token  // This state won't transfer to client in SSR!
+    lastLoginAt.value = Date.now()  // This state won't transfer to client in SSR!
     name.value = data.name
     email.value = data.email
     lastFetchTime.value = Date.now()
   }
 
-  // WRONG: Not returning authToken and lastFetchTime
+  // WRONG: Not returning lastLoginAt and lastFetchTime
   return {
     name,
     email,
-    isLoggedIn,
+    hasLoggedIn,
     login
   }
 })
@@ -63,7 +65,7 @@ export const useUserStore = defineStore('user', () => {
 
 **What breaks:**
 
-1. **SSR Hydration**: `authToken` and `lastFetchTime` won't be serialized and sent to the client
+1. **SSR Hydration**: `lastLoginAt` and `lastFetchTime` won't be serialized and sent to the client
 2. **DevTools**: These properties won't appear in the store inspector
 3. **Plugins**: Persistence plugins won't save these properties
 4. **Time-travel debugging**: Can't track changes to hidden state
@@ -79,11 +81,11 @@ export const useUserStore = defineStore('user', () => {
   // All state properties
   const name = ref('')
   const email = ref('')
-  const authToken = ref('')
+  const lastLoginAt = ref(null)
   const lastFetchTime = ref(null)
 
   // Getters
-  const isLoggedIn = computed(() => !!authToken.value)
+  const hasLoggedIn = computed(() => lastLoginAt.value !== null)
 
   // Actions
   async function login(credentials) {
@@ -93,14 +95,14 @@ export const useUserStore = defineStore('user', () => {
     })
     const data = await response.json()
 
-    authToken.value = data.token
+    lastLoginAt.value = Date.now()
     name.value = data.name
     email.value = data.email
     lastFetchTime.value = Date.now()
   }
 
   function logout() {
-    authToken.value = ''
+    lastLoginAt.value = null
     name.value = ''
     email.value = ''
   }
@@ -110,10 +112,10 @@ export const useUserStore = defineStore('user', () => {
     // State
     name,
     email,
-    authToken,
+    lastLoginAt,
     lastFetchTime,
     // Getters
-    isLoggedIn,
+    hasLoggedIn,
     // Actions
     login,
     logout
@@ -132,24 +134,24 @@ import { ref, computed } from 'vue'
 export const useUserStore = defineStore('user', () => {
   // Convention: underscore prefix for "internal" state
   // Still returned, but signals it's not for external use
-  const _authToken = ref('')
+  const _lastLoginAt = ref(null)
   const _lastFetchTime = ref(null)
 
   // Public state
   const name = ref('')
   const email = ref('')
 
-  const isLoggedIn = computed(() => !!_authToken.value)
+  const hasLoggedIn = computed(() => _lastLoginAt.value !== null)
 
   // Return everything - convention communicates intent
   return {
     // "Private" - use with caution
-    _authToken,
+    _lastLoginAt,
     _lastFetchTime,
     // Public
     name,
     email,
-    isLoggedIn
+    hasLoggedIn
   }
 })
 ```
@@ -166,12 +168,12 @@ export const useUserStore = defineStore('user', {
   state: () => ({
     name: '',
     email: '',
-    authToken: '',  // Automatically included
+    lastLoginAt: null,  // Automatically included
     lastFetchTime: null  // Automatically included
   }),
 
   getters: {
-    isLoggedIn: (state) => !!state.authToken
+    hasLoggedIn: (state) => state.lastLoginAt !== null
   },
 
   actions: {
@@ -218,7 +220,7 @@ console.log(userStore.$state)
 
 // Check what's returned
 console.log(Object.keys(userStore))
-// Should include: name, email, authToken, lastFetchTime, isLoggedIn, login, logout
+// Should include: name, email, lastLoginAt, lastFetchTime, hasLoggedIn, login, logout
 ```
 
 ## Reference

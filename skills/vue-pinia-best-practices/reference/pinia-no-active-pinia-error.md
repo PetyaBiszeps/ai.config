@@ -195,12 +195,12 @@ router.beforeEach((to) => {
 ```javascript
 // router/index.js - CORRECT
 import { createRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({ /* ... */ })
 
 router.beforeEach((to) => {
-  // Dynamically import to avoid module-level execution
-  const { useAuthStore } = await import('@/stores/auth')
+  // Resolve the store when the guard runs, not at module initialization
   const authStore = useAuthStore()
 
   if (to.meta.requiresAuth && !authStore.isLoggedIn) {
@@ -223,24 +223,9 @@ When you see "No active Pinia":
 4. **Check mapStores usage**: Using `useStore()` instead of `useStore`?
 5. **Check import chains**: Does an early import trigger store usage?
 
-## Safe Pattern: Conditional Store Access
+## Access Outside Setup and in SSR
 
-```javascript
-// For code that might run before Pinia is ready
-import { getActivePinia } from 'pinia'
-
-export function safelyUseStore() {
-  const pinia = getActivePinia()
-
-  if (!pinia) {
-    console.warn('Pinia not initialized yet')
-    return null
-  }
-
-  const { useUserStore } = await import('@/stores/user')
-  return useUserStore()
-}
-```
+In a client-only SPA, call `useStore()` after installing Pinia. In SSR code outside an injection-aware context, explicitly pass the current request's Pinia instance: `useUserStore(pinia)`. Do not use `getActivePinia()` as a fallback to mask initialization problems.
 
 ## Reference
 - [Vue Land FAQ - No Active Pinia](https://vue-land.github.io/faq/no-active-pinia)
