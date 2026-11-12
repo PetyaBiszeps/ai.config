@@ -154,12 +154,8 @@ export default defineConfig({
     },
     // Helpful for debugging
     reporters: ['verbose'],
-    // Run tests in sequence in CI
-    poolOptions: {
-      threads: {
-        singleThread: process.env.CI === 'true'
-      }
-    }
+    // Run test files in sequence in CI
+    fileParallelism: process.env.CI !== 'true'
   }
 })
 ```

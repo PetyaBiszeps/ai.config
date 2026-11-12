@@ -149,15 +149,21 @@ test('submits form and shows success', async () => {
 
 ## Testing with MSW or Mock APIs
 ```javascript
-import { flushPromises } from '@vue/test-utils'
-import { rest } from 'msw'
+import { test, expect, beforeAll, afterEach, afterAll } from 'vitest'
+import { mount, flushPromises } from '@vue/test-utils'
+import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
+import UserCard from './UserCard.vue'
 
 const server = setupServer(
-  rest.get('/api/user', (req, res, ctx) => {
-    return res(ctx.json({ name: 'John' }))
+  http.get('/api/user', () => {
+    return HttpResponse.json({ name: 'John' })
   })
 )
+
+beforeAll(() => server.listen())
+afterEach(() => server.resetHandlers())
+afterAll(() => server.close())
 
 test('displays user data', async () => {
   const wrapper = mount(UserCard)

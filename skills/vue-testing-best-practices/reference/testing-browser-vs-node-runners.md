@@ -8,7 +8,7 @@ tags: [vue3, testing, component-testing, vitest, browser, jsdom]
 
 # Choose Browser-Based Runner for Style and DOM Event Testing
 
-**Impact: MEDIUM** - Node-based test runners (Vitest with jsdom/happy-dom) simulate the DOM but cannot test real CSS rendering, native browser events, cookies, computed styles, or cross-browser behavior. Use browser-based runners when these matter.
+**Impact: MEDIUM** - Simulated DOM environments such as jsdom and happy-dom support many DOM APIs, but cannot fully reproduce browser layout, CSS rendering, and native interaction behavior. Use Browser Mode when real browser behavior matters.
 
 Use Vitest for most component tests (fast), but use Vitest Browser Mode when testing visual/DOM-dependent features.
 
@@ -17,7 +17,7 @@ Use Vitest for most component tests (fast), but use Vitest Browser Mode when tes
 - [ ] Use Vitest (node) for logic-focused component tests
 - [ ] Use Vitest Browser Mode for style-dependent tests
 - [ ] Use Vitest Browser Mode for native events (focus, drag, resize)
-- [ ] Use Vitest Browser Mode for cookies and computed CSS styles
+- [ ] Use Vitest Browser Mode for real CSS rendering and computed styles
 - [ ] Accept slower speed tradeoff for browser accuracy
 
 ## When to Use Each Approach
@@ -55,26 +55,32 @@ Required for:
 - CSS transitions/animations
 - Real focus/blur behavior
 - Drag and drop
-- Cookie operations
 - Viewport-dependent behavior
 - Cross-browser validation
 
 ## Vitest Browser Mode Setup
 
+This setup targets Vitest 4. For older projects, use documentation matching the installed version.
+
 ```bash
-npm install -D @vitest/browser playwright
+npm install -D vitest @vitest/browser-playwright playwright vitest-browser-vue @vitejs/plugin-vue
+npx playwright install chromium
 ```
 
 ```javascript
-// vitest.config.js
+// vitest.browser.config.js
 import { defineConfig } from 'vitest/config'
+import { playwright } from '@vitest/browser-playwright'
+import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
+  plugins: [vue()],
   test: {
+    include: ['**/*.browser.test.{js,ts}'],
     browser: {
       enabled: true,
-      name: 'chromium',
-      provider: 'playwright',
+      provider: playwright(),
+      instances: [{ browser: 'chromium' }],
     },
   },
 })
@@ -82,11 +88,12 @@ export default defineConfig({
 
 ```javascript
 // Button.browser.test.js
+import { test, expect } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import Button from './Button.vue'
 
 test('has correct hover styling', async () => {
-  const { getByRole } = render(Button, { props: { label: 'Click me' } })
+  const { getByRole } = await render(Button, { props: { label: 'Click me' } })
 
   const button = getByRole('button')
 
@@ -97,7 +104,7 @@ test('has correct hover styling', async () => {
 })
 
 test('maintains focus after click', async () => {
-  const { getByRole } = render(Button)
+  const { getByRole } = await render(Button)
 
   const button = getByRole('button')
   await button.click()
@@ -119,7 +126,7 @@ test('danger button has red background', () => {
 
 // Vitest Browser Mode: CAN verify computed styles
 test('danger button renders red', async () => {
-  const { getByRole } = render(Button, { props: { variant: 'danger' } })
+  const { getByRole } = await render(Button, { props: { variant: 'danger' } })
   await expect.element(getByRole('button')).toHaveStyle({
     backgroundColor: 'rgb(239, 68, 68)'
   })
@@ -138,7 +145,7 @@ test('button has correct padding', () => {
 
 // Vitest Browser Mode: Real computed styles
 test('button has correct padding', async () => {
-  const { getByRole } = render(Button)
+  const { getByRole } = await render(Button)
   const button = getByRole('button')
 
   await expect.element(button).toHaveStyle({
@@ -157,10 +164,10 @@ test('handles drag and drop', async () => {
 })
 
 // Vitest Browser Mode: Real native events via userEvent
-import { userEvent } from '@vitest/browser/context'
+import { userEvent } from 'vitest/browser'
 
 test('reorders items on drag', async () => {
-  const { getByTestId } = render(DraggableList)
+  const { getByTestId } = await render(DraggableList)
 
   const item = getByTestId('item-1')
   const target = getByTestId('item-3')
@@ -175,6 +182,7 @@ test('reorders items on drag', async () => {
 
 ```javascript
 // vitest.config.js - Separate test configurations
+import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
@@ -182,12 +190,12 @@ export default defineConfig({
     environment: 'happy-dom',
 
     // Browser tests in separate directory
-    include: ['src/**/*.test.{js,ts}'],
+    include: ['tests/unit/**/*.test.{js,ts}'],
   },
 })
 
 // Run browser tests separately
-// npx vitest --browser.enabled
+// npx vitest --config vitest.browser.config.js
 ```
 
 ### Directory Structure

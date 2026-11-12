@@ -103,7 +103,7 @@ import { createApp } from 'vue'
 /**
  * Helper to test composables that need component context
  */
-export function withSetup(composable) {
+export function withSetup(composable, options = {}) {
   let result
 
   const app = createApp({
@@ -113,6 +113,13 @@ export function withSetup(composable) {
       return () => {}
     }
   })
+
+  // Apply global provides before mounting
+  if (options.provide) {
+    Object.entries(options.provide).forEach(([key, value]) => {
+      app.provide(key, value)
+    })
+  }
 
   app.mount(document.createElement('div'))
 
@@ -141,11 +148,10 @@ describe('useFetch', () => {
   it('fetches data on mount', async () => {
     mockApiClient.get.mockResolvedValue({ data: { id: 1, name: 'Test' } })
 
-    const [result, testApp] = withSetup(() => useFetch('/api/test'))
+    const [result, testApp] = withSetup(() => useFetch('/api/test'), {
+      provide: { apiClient: mockApiClient }
+    })
     app = testApp
-
-    // Provide mocked dependency
-    app.provide('apiClient', mockApiClient)
 
     // Wait for async operations
     await flushPromises()
@@ -159,49 +165,16 @@ describe('useFetch', () => {
     const testError = new Error('Network error')
     mockApiClient.get.mockRejectedValue(testError)
 
-    const [result, testApp] = withSetup(() => useFetch('/api/test'))
+    const [result, testApp] = withSetup(() => useFetch('/api/test'), {
+      provide: { apiClient: mockApiClient }
+    })
     app = testApp
-    app.provide('apiClient', mockApiClient)
 
     await flushPromises()
 
     expect(result.error.value).toBe(testError)
     expect(result.data.value).toBeNull()
   })
-})
-```
-
-## Enhanced withSetup Helper with Provide Support
-```javascript
-// test-utils.js
-export function withSetup(composable, options = {}) {
-  let result
-
-  const app = createApp({
-    setup() {
-      result = composable()
-      return () => {}
-    }
-  })
-
-  // Apply global provides before mounting
-  if (options.provide) {
-    Object.entries(options.provide).forEach(([key, value]) => {
-      app.provide(key, value)
-    })
-  }
-
-  app.mount(document.createElement('div'))
-
-  return [result, app]
-}
-
-// Usage
-const [result, app] = withSetup(() => useMyComposable(), {
-  provide: {
-    apiClient: mockApiClient,
-    currentUser: { id: 1, name: 'Test User' }
-  }
 })
 ```
 
