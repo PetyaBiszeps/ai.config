@@ -1,0 +1,29 @@
+name: Validate Skills
+
+on:
+  push:
+    paths:
+      - "skills/**"
+      - "scripts/ci/validate-skills.py"
+      - ".github/workflows/validate-skills.yaml"
+
+  pull_request:
+    paths:
+      - "skills/**"
+      - "scripts/ci/validate-skills.py"
+      - ".github/workflows/validate-skills.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Agent Skills
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate skills
+        run: python3 scripts/ci/validate-skills.py
